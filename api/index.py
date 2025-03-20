@@ -25,7 +25,6 @@ def handle_post2():
     prepared_words, word_mapping = prepare_text_for_spell_check(text)
     misspelled = spellChecker.unknown(prepared_words)
     response, correction_mapping = correct_original_text(text, misspelled, word_mapping, spellChecker.correction)
-    print(response, correction_mapping)
     return dumps({'response': response, 'corections' : correction_mapping})
 
 

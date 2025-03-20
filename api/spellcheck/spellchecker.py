@@ -199,7 +199,6 @@ class SpellChecker:
             words (list): List of words to determine which are not in the corpus
         Returns:
             set: The set of those words from the input that are not in the corpus"""
-        print(words)
         tmp_words = [ensure_unicode(w) for w in words]
         tmp = [w if self._case_sensitive else w.lower() for w in tmp_words if self._check_if_should_check(w)]
         return {w for w in tmp if w not in self._word_frequency.dictionary}
