@@ -1,15 +1,48 @@
 """ Additional utility functions """
 import contextlib
-import functools
 import gzip
 import re
 import typing
-import warnings
 from pathlib import Path
 
 KeyT = typing.Union[str, bytes]
 PathOrStr = typing.Union[Path, str]
 
+
+
+def prepare_text_for_spell_check(text):
+    # Split the text into words and remove punctuation
+    words = re.findall(r'\b\w+\b', text)
+    # Keep track of original words with punctuation
+    original_words = text.split()
+    
+    # Create a mapping between original and processed words
+    word_mapping = dict(zip([re.sub(r'[^\w\s]', '', w).lower() for w in original_words], original_words))
+    
+    # Prepare words for spell checking
+    prepared_words = [re.sub(r'[^\w\s]', '', w).lower() for w in original_words]
+    
+    return prepared_words, word_mapping
+
+def correct_original_text(text, misspelled, word_mapping, spell_suggestions):
+    # Create a mapping of misspelled words to their corrections
+    correction_mapping = {}
+    for word in misspelled:
+        # Assuming spell_suggestions returns a list of suggestions for each word
+        suggestions = spell_suggestions(word)
+        if suggestions:
+            correction_mapping[word] = suggestions  # Use the first suggestion
+    
+    # Replace misspelled words in the original text
+    corrected_text = text
+    for word, correction in correction_mapping.items():
+        for original_word in word_mapping:
+            if original_word == word:
+                original_text_word = word_mapping[original_word]
+                corrected_text_word = re.sub(r'\b\w+\b', correction, original_text_word)
+                corrected_text = corrected_text.replace(original_text_word, corrected_text_word)
+    
+    return corrected_text, correction_mapping
 
 def ensure_unicode(value: KeyT, encoding: str = "utf-8") -> str:
     """Simplify checking if passed in data are bytes or a string and decode

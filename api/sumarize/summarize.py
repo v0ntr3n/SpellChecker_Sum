@@ -39,7 +39,7 @@ def summarize(text):
     sort_idx=np.argsort(-scores)
 
     #print summary
-    res = ""
+    res = []
     for i in sort_idx[:5]:
-        res += sents[i]
-    return res
+        res.append(sents[i])
+    return ' '.join(res)    

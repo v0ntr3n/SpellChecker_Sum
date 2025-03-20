@@ -423,13 +423,13 @@
                 Input Text
             </h2>
             <textarea id="inputText" placeholder = "Enter your text here to check spelling and generate a summary..."></textarea>    
-            <div class="file-upload">
+            <!-- <div class="file-upload">
                 <h3>Upload PDF or Word Documents</h3>
                 <p>Drag and drop files here or click the button below</p>
                 <input type="file" id="fileInput" accept=".pdf,.doc,.docx">
                 <button class="upload-button" onclick="document.getElementById('fileInput').click()">Choose Files</button>
                 <div class="file-types">Accepted file types: PDF, DOC, DOCX</div>
-            </div>
+            </div> -->
             <div class="button-group">
                 <button id="checkButton" class="primary-btn">
                     <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
@@ -596,82 +596,163 @@
                 'clairity': 'clarity',
                 'profesionalism': 'professionalism'
             };
+            
+            function highlightDifferences(originalText, correctedText, corrections) {
+                const originalWords = originalText.split(/\s+/);
+                const correctedWords = correctedText.split(/\s+/);
+                let highlightedText = '';
+
+                for (let i = 0; i < originalWords.length; i++) {
+                    const originalWord = originalWords[i];
+                    const correctedWord = correctedWords[i];
+
+                    if (originalWord !== correctedWord && corrections[originalWord]) {
+                        highlightedText += `<del style="color: red; text-decoration: line-through;">${originalWord}</del><ins style="color: green; text-decoration: underline;">${correctedWord}</ins> `;
+                    } else {
+                        highlightedText += originalWord + ' ';
+                    }
+                }
+
+                return highlightedText.trim();
+            }
 
             // Function to find and fix spelling errors
-            function fixSpellingErrors(text) {
+            async function fixSpellingErrors(text) {
                 let correctedText = text;
                 let corrections = [];
-                let highlightedText = text;
                 
-                // Simple word-by-word replacement
-                for (const [misspelled, correct] of Object.entries(spellingDictionary)) {
-                    // Create a regex that matches the misspelled word as a whole word
-                    const regex = new RegExp(`\\b${misspelled}\\b`, 'gi');
-                    
-                    // Find all matches and store them for highlighting
-                    let match;
-                    while ((match = regex.exec(text)) !== null) {
-                        corrections.push({
-                            original: match[0],
-                            corrected: correct,
-                            index: match.index
-                        });
+                try {
+                    const response = await fetch('/mistake', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                        },
+                        body: JSON.stringify({
+                            text: text
+                        })
+                    });
+                    if (!response.ok) {
+                        throw new Error(`HTTP error! status: ${response.status}`);
                     }
+                    const data = await response.json();
                     
-                    // Replace the misspelled word with the correct one
-                    correctedText = correctedText.replace(regex, correct);
+                    for (const [misspelled, corrected] of Object.entries(data.corections)) {
+                        if (corrected && corrected !== misspelled) {
+                            // Find all occurrences of the misspelled word
+                            let index = -1;
+                            while ((index = text.indexOf(misspelled, index + 1)) !== -1) {
+                                corrections.push({
+                                    original: misspelled,
+                                    corrected: corrected,
+                                    index: index
+                                });
+                            }
+                            
+                            // Replace all occurrences of the misspelled word with the correct one
+                            correctedText = correctedText.replace(new RegExp(`\\b${misspelled}\\b`, 'g'), corrected);
+                        }
+                    }
+                } catch (error) {
+                    console.error('Error checking text:', error);
                 }
                 
-                // Sort corrections by index (from end to start to avoid index shifting)
-                corrections.sort((a, b) => b.index - a.index);
+                // Sort corrections by index (from start to end)
+                corrections.sort((a, b) => a.index - b.index);
                 
-                // Apply highlighting to the original text
+                // Create a diff text highlighting the changes
+                let diffText = text;
+                let offset = 0;
+                
                 for (const correction of corrections) {
-                    const before = highlightedText.substring(0, correction.index);
-                    const after = highlightedText.substring(correction.index + correction.original.length);
-                    highlightedText = before + 
-                        `<span class="error-highlight">${correction.original}</span>` + 
-                        `<span class="correction-highlight">${correction.corrected}</span>` + 
-                        after;
+                    const startIndex = correction.index + offset;
+                    const endIndex = startIndex + correction.original.length;
+                    
+                    const before = diffText.slice(0, startIndex);
+                    const after = diffText.slice(endIndex);
+                    
+                    const diffPart = `<del style="color: red; text-decoration: line-through;">${correction.original}</del><ins style="color: green; text-decoration: underline;">${correction.corrected}</ins>`;
+                    
+                    diffText = before + diffPart + after;
+                    
+                    // Update offset for subsequent replacements
+                    offset += diffPart.length - correction.original.length;
                 }
                 
                 return {
-                    correctedText,
-                    highlightedText
-                };
+        correctedText: correctedText,
+        diffText: diffText
+    };
             }
 
+
+
             // Function to generate a summary of the text
-            function summarizeText(text) {
-                // For this example, we'll use a simple approach:
-                // 1. Split the text into sentences
-                // 2. Remove very short sentences
-                // 3. Take the first few sentences
-                
+            async function summarizeText(text) {
+                // Check if text is too short to need summarization
                 const sentences = text.split(/[.!?]+/).filter(s => s.trim().length > 0);
-                
                 if (sentences.length <= 2) {
                     return text;
                 }
                 
-                // For a very simple summary, just take the first sentence
-                // and add a generated summary
-                let summary = sentences[0] + '. ';
-                
-                // Generate a simple summary based on the content
-                let wordCount = text.split(/\s+/).length;
-                let errorsFixed = Object.keys(spellingDictionary).filter(word => 
-                    text.toLowerCase().includes(word.toLowerCase())
-                ).length;
-                
-                summary += `This text is ${wordCount} words long and discusses the importance of correct spelling. `;
-                
-                if (errorsFixed > 0) {
-                    summary += `${errorsFixed} spelling errors were corrected for clarity and professionalism.`;
+                try {
+                    // Call to summarization API
+                    const response = await fetch('/sumarize', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                        },
+                        body: JSON.stringify({
+                            text: text,
+                            max_length: 100
+                        })
+                    });
+                    
+                    if (!response.ok) {
+                        throw new Error(`API error: ${response.status}`);
+                    }
+                    
+                    const data = await response.json();
+                    
+                    // Enhance the API-generated summary with metadata
+                    let summary = data.summary;
+                    let wordCount = text.split(/\s+/).length;
+                    
+                    // Add information about spelling corrections if applicable
+                    if (typeof spellingDictionary !== 'undefined') {
+                        let errorsFixed = Object.keys(spellingDictionary).filter(word => 
+                            text.toLowerCase().includes(word.toLowerCase())
+                        ).length;
+                        
+                        if (errorsFixed > 0) {
+                            summary += ` ${errorsFixed} spelling errors were corrected for clarity and professionalism.`;
+                        }
+                    }
+                    
+                    return summary;
+                    
+                } catch (error) {
+                    console.error('Error using summarization API:', error);
+                    
+                    // Fallback to original simple approach if API fails
+                    let fallbackSummary = sentences[0] + '. ';
+                    let wordCount = text.split(/\s+/).length;
+                    
+                    fallbackSummary += `This text is ${wordCount} words long and discusses the importance of correct spelling. `;
+                    
+                    if (typeof spellingDictionary !== 'undefined') {
+                        let errorsFixed = Object.keys(spellingDictionary).filter(word => 
+                            text.toLowerCase().includes(word.toLowerCase())
+                        ).length;
+                        
+                        if (errorsFixed > 0) {
+                            fallbackSummary += `${errorsFixed} spelling errors were corrected for clarity and professionalism.`;
+                        }
+                    }
+                    
+                    return fallbackSummary;
                 }
-                
-                return summary;
             }
+
 
             // Check spelling event
             checkButton.addEventListener('click', function() {
@@ -686,14 +767,14 @@
                 loader.style.display = 'block';
                 
                 // Simulate processing time
-                setTimeout(() => {
-                    const { correctedText, highlightedText } = fixSpellingErrors(text);
+                setTimeout(async () => {
+                    const { correctedText, diffText } = await fixSpellingErrors(text);
                     
                     // Update the corrected text
                     spellingCorrectionText.textContent = correctedText;
                     
                     // Update the highlighted text
-                    spellingWithErrors.innerHTML = highlightedText;
+                    spellingWithErrors.innerHTML = diffText;
                     
                     // Show the spelling result section
                     spellingResult.style.display = 'block';
@@ -728,33 +809,40 @@
                 loader.style.display = 'block';
                 
                 // Simulate processing time
-                setTimeout(() => {
-                    // Get the corrected text if available, otherwise use the original
-                    const textToSummarize = spellingCorrectionText.textContent || text;
-                    
-                    const summary = summarizeText(textToSummarize);
-                    
-                    // Update the summary text
-                    summarizedText.textContent = summary;
-                    
-                    // Show the summary result section
-                    summaryResult.style.display = 'block';
-                    
-                    // Animate the result section
-                    anime({
-                        targets: summaryResult,
-                        opacity: [0, 1],
-                        translateY: [20, 0],
-                        duration: 500,
-                        easing: 'easeOutExpo'
-                    });
-                    
-                    // Add the 'visible' class
-                    summaryResult.classList.add('visible');
-                    
-                    // Hide the loading state
-                    loader.style.display = 'none';
+                setTimeout(async () => {
+                    try {
+                        // Get the corrected text if available, otherwise use the original
+                        const textToSummarize = spellingCorrectionText.textContent || text;
+                        
+                        // Call the async summarizeText function and await its result
+                        const summary = await summarizeText(textToSummarize);
+                        
+                        // Update the summary text
+                        summarizedText.textContent = summary;
+                        
+                        // Show the summary result section
+                        summaryResult.style.display = 'block';
+                        
+                        // Animate the result section
+                        anime({
+                            targets: summaryResult,
+                            opacity: [0, 1],
+                            translateY: [20, 0],
+                            duration: 500,
+                            easing: 'easeOutExpo'
+                        });
+                        
+                        // Add the 'visible' class
+                        summaryResult.classList.add('visible');
+                    } catch (error) {
+                        console.error('Error in summarizing text:', error);
+                        summarizedText.textContent = 'An error occurred while summarizing the text.';
+                    } finally {
+                        // Hide the loading state
+                        loader.style.display = 'none';
+                    }
                 }, 1500);
+
             });
 
             // Clear button event

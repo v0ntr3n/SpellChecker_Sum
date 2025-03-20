@@ -1,8 +1,9 @@
 from flask import Flask, render_template_string
-from flask import Flask, render_template, request, redirect, session
+from flask import Flask, request
 from api.spellcheck.spellchecker import spellChecker
+from api.spellcheck.utils import prepare_text_for_spell_check, correct_original_text
 from api.sumarize.summarize import summarize
-from json import dumps
+from json import dumps, loads
 app = Flask(__name__)
 
 @app.route('/')
@@ -11,17 +12,21 @@ def home():
 
 @app.route('/sumarize', methods=['POST'])
 def handle_post():
-    text = request.args['text']
+    data = loads(request.data.decode('utf-8'))
+    text = data['text']
     res = summarize(text)
-    return dumps({'response': res})
+    return dumps({'summary': res})
 
 @app.route('/mistake', methods=['POST'])
-def handle_post():
-    text : str = request.args['text']
-    misspelled = spellChecker.unknown(['something', 'is', 'hapenning', 'here'])
-    for word in misspelled:
-        # Get the one `most likely` answer
-        print(spellChecker.correction(word))
+def handle_post2():
+    data = loads(request.data.decode('utf-8'))
+    text = data['text'].strip()
 
-    res = summarize(text)
-    return dumps({'response': res})
+    prepared_words, word_mapping = prepare_text_for_spell_check(text)
+    misspelled = spellChecker.unknown(prepared_words)
+    response, correction_mapping = correct_original_text(text, misspelled, word_mapping, spellChecker.correction)
+    print(response, correction_mapping)
+    return dumps({'response': response, 'corections' : correction_mapping})
+
+
+app.run(debug=True)
