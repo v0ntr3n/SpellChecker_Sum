@@ -55,14 +55,8 @@ class SpellChecker:
             if not isinstance(language, Iterable) or isinstance(language, (str, bytes)):
                 language = [language]
             for lang in language:
-                filename = f"resources/{lang.lower()}.json.gz"
-                try:
-                    json_open = pkgutil.get_data("spellchecker", filename)
-                except FileNotFoundError as exc:
-                    msg = f"The provided dictionary language ({lang.lower()}) does not exist!"
-                    raise ValueError(msg) from exc
-                if json_open:
-                    lang_dict = json.loads(gzip.decompress(json_open).decode("utf-8"))
+                filename = f"{lang.lower()}.json"
+                lang_dict = json.load(open(filename, 'r',encoding="utf-8"))
                 self._word_frequency.load_json(lang_dict)
 
     def __contains__(self, key: KeyT) -> bool:
@@ -505,3 +499,6 @@ class WordFrequency:
             if len(key) > self._longest_word_length:
                 self._longest_word_length = len(key)
             self._letters.update(key)
+
+
+spellChecker = SpellChecker()

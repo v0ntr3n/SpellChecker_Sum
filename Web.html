@@ -642,72 +642,36 @@
             }
 
             // Function to generate a summary of the text
-            async function summarizeText(text) {
-                // Check if text is too short to need summarization
+            function summarizeText(text) {
+                // For this example, we'll use a simple approach:
+                // 1. Split the text into sentences
+                // 2. Remove very short sentences
+                // 3. Take the first few sentences
+                
                 const sentences = text.split(/[.!?]+/).filter(s => s.trim().length > 0);
+                
                 if (sentences.length <= 2) {
                     return text;
                 }
                 
-                try {
-                    // Call to summarization API
-                    const response = await fetch('/sumarize', {
-                        method: 'POST',
-                        headers: {
-                            'Content-Type': 'application/json',
-                        },
-                        body: JSON.stringify({
-                            text: text,
-                            max_length: 100
-                        })
-                    });
-                    
-                    if (!response.ok) {
-                        throw new Error(`API error: ${response.status}`);
-                    }
-                    
-                    const data = await response.json();
-                    
-                    // Enhance the API-generated summary with metadata
-                    let summary = data.summary;
-                    let wordCount = text.split(/\s+/).length;
-                    
-                    // Add information about spelling corrections if applicable
-                    if (typeof spellingDictionary !== 'undefined') {
-                        let errorsFixed = Object.keys(spellingDictionary).filter(word => 
-                            text.toLowerCase().includes(word.toLowerCase())
-                        ).length;
-                        
-                        if (errorsFixed > 0) {
-                            summary += ` ${errorsFixed} spelling errors were corrected for clarity and professionalism.`;
-                        }
-                    }
-                    
-                    return summary;
-                    
-                } catch (error) {
-                    console.error('Error using summarization API:', error);
-                    
-                    // Fallback to original simple approach if API fails
-                    let fallbackSummary = sentences[0] + '. ';
-                    let wordCount = text.split(/\s+/).length;
-                    
-                    fallbackSummary += `This text is ${wordCount} words long and discusses the importance of correct spelling. `;
-                    
-                    if (typeof spellingDictionary !== 'undefined') {
-                        let errorsFixed = Object.keys(spellingDictionary).filter(word => 
-                            text.toLowerCase().includes(word.toLowerCase())
-                        ).length;
-                        
-                        if (errorsFixed > 0) {
-                            fallbackSummary += `${errorsFixed} spelling errors were corrected for clarity and professionalism.`;
-                        }
-                    }
-                    
-                    return fallbackSummary;
+                // For a very simple summary, just take the first sentence
+                // and add a generated summary
+                let summary = sentences[0] + '. ';
+                
+                // Generate a simple summary based on the content
+                let wordCount = text.split(/\s+/).length;
+                let errorsFixed = Object.keys(spellingDictionary).filter(word => 
+                    text.toLowerCase().includes(word.toLowerCase())
+                ).length;
+                
+                summary += `This text is ${wordCount} words long and discusses the importance of correct spelling. `;
+                
+                if (errorsFixed > 0) {
+                    summary += `${errorsFixed} spelling errors were corrected for clarity and professionalism.`;
                 }
+                
+                return summary;
             }
-
 
             // Check spelling event
             checkButton.addEventListener('click', function() {
