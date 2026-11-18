@@ -1,28 +1,99 @@
-[![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/new/clone?repository-url=https%3A%2F%2Fgithub.com%2Fvercel%2Fexamples%2Ftree%2Fmain%2Fpython%2Fflask3&demo-title=Flask%203%20%2B%20Vercel&demo-description=Use%20Flask%203%20on%20Vercel%20with%20Serverless%20Functions%20using%20the%20Python%20Runtime.&demo-url=https%3A%2F%2Fflask3-python-template.vercel.app%2F&demo-image=https://assets.vercel.com/image/upload/v1669994156/random/flask.png)
+# SpellChecker & Text Summarizer
 
-# Flask + Vercel
+[![Live Demo](https://img.shields.io/badge/demo-vercel-000000?style=flat&logo=vercel)](https://examples-eight-pi.vercel.app)
+[![Python](https://img.shields.io/badge/Python-3.10+-3776AB?style=flat&logo=python&logoColor=white)](https://python.org)
+[![Flask](https://img.shields.io/badge/Flask-3.0-000000?style=flat&logo=flask)](https://flask.palletsprojects.com/)
+[![License: MIT](https://img.shields.io/badge/License-MIT-green.svg)](LICENSE)
 
-This example shows how to use Flask 3 on Vercel with Serverless Functions using the [Python Runtime](https://vercel.com/docs/concepts/functions/serverless-functions/runtimes/python).
+A lightweight web application and REST API for **English spell checking** (with token-offset mapping and contextual replacement) and **extractive text summarization**, built with Python (Flask) and deployed serverless on Vercel.
 
-## Demo
+🔗 **Live Demo:** [https://examples-eight-pi.vercel.app](https://examples-eight-pi.vercel.app)
 
-https://flask-python-template.vercel.app/
+---
 
-## How it Works
+## Features
 
-This example uses the Web Server Gateway Interface (WSGI) with Flask to enable handling requests on Vercel with Serverless Functions.
+- **Token-Preserving Spell Check (`/mistake`):** Identifies misspelled words against a curated English lexicon (`en.json`), maps normalized tokens back to their exact character positions, and returns both corrected text and word-level correction mappings.
+- **Extractive Summarization (`/sumarize`):** Condenses long-form English paragraphs into concise summaries.
+- **Zero-Build Web Interface (`Web.html`):** Interactive browser UI communicating directly with the Flask JSON endpoints.
+- **Serverless Deployment:** Configured via `vercel.json` for instant deployment on Vercel Python Runtime.
 
-## Running Locally
+---
 
-```bash
-npm i -g vercel
-vercel dev
+## Project Structure
+
+```text
+SpellChecker_Sum/
+├── api/
+│   ├── index.py                  # Flask application & REST routes
+│   ├── spellcheck/
+│   │   ├── spellchecker.py       # Dictionary lookup & edit-distance candidate scorer
+│   │   └── utils.py              # Token normalization & original-text reconstruction
+│   └── sumarize/
+│       └── summarize.py          # Extractive text summarization engine
+├── Web.html                      # Interactive frontend interface
+├── en.json                       # English frequency dictionary
+├── requirements.txt              # Python dependencies
+├── vercel.json                   # Vercel serverless routing configuration
+└── LICENSE
 ```
 
-Your Flask application is now available at `http://localhost:3000`.
+---
 
-## One-Click Deploy
+## API Reference
 
-Deploy the example using [Vercel](https://vercel.com?utm_source=github&utm_medium=readme&utm_campaign=vercel-examples):
+### 1. Spell Check (`POST /mistake`)
 
-[![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/new/clone?repository-url=https%3A%2F%2Fgithub.com%2Fvercel%2Fexamples%2Ftree%2Fmain%2Fpython%2Fflask3&demo-title=Flask%203%20%2B%20Vercel&demo-description=Use%20Flask%203%20on%20Vercel%20with%20Serverless%20Functions%20using%20the%20Python%20Runtime.&demo-url=https%3A%2F%2Fflask3-python-template.vercel.app%2F&demo-image=https://assets.vercel.com/image/upload/v1669994156/random/flask.png)
+**Request Body:**
+```json
+{
+  "text": "Thiss is an exampel of mispeled text."
+}
+```
+
+**Response:**
+```json
+{
+  "response": "This is an example of misspelled text.",
+  "corections": {
+    "Thiss": "This",
+    "exampel": "example",
+    "mispeled": "misspelled"
+  }
+}
+```
+
+### 2. Text Summarization (`POST /sumarize`)
+
+**Request Body:**
+```json
+{
+  "text": "Long article or paragraph text to summarize..."
+}
+```
+
+**Response:**
+```json
+{
+  "summary": "Concise extracted summary..."
+}
+```
+
+---
+
+## Local Development
+
+```bash
+git clone https://github.com/v0ntr3n/SpellChecker_Sum.git
+cd SpellChecker_Sum
+
+python -m venv .venv
+source .venv/bin/activate  # On Windows: .venv\Scripts\activate
+pip install -r requirements.txt
+
+python -m api.index
+```
+
+## License
+
+Released under the [MIT License](LICENSE).
